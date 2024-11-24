@@ -15,9 +15,9 @@ datasource db {
 
 model User {
   id          String          @id @default(uuid())
-  email       String
+  email       String           @unique
   provider    Provider
-  role        Role
+  // role        Role
 //one to many relation bw user and stream
   streams     Stream[]
   upvotes     Upvote[]        
@@ -28,6 +28,11 @@ model Stream{
   id          String          @id @default(uuid())
   type        StreamType
   active      Boolean          @default(true)
+  url         String
+  extractedId String
+  title       String           @default("")
+  smallImg    String           @default("")        
+  bigImg      String           @default("")
   upvotes     Upvote[]
   //create relation bw stream and user
   userId      String
@@ -48,10 +53,10 @@ enum StreamType {
   Youtube
 }
 
-enum Role {
-  Streamer
-  EndUSer
-}
+// enum Role {
+//   Streamer
+//   EndUSer
+// }
 
 enum Provider {
   Google
