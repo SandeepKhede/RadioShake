@@ -37,7 +37,14 @@ export interface StreamsResponse {
 
 
 
-export default function StreamView({creatorId}:{creatorId: string}) {
+export default function StreamView({
+    creatorId,
+    playVideo = false
+    } : {
+        creatorId: string,
+        playVideo: boolean
+    }
+) {
   const [input, setInput] = useState('')
   const [previewId, setPreviewId] = useState<string | null>(null)
   const [queue, setQueue] = useState<StreamsResponse>({
@@ -45,22 +52,23 @@ export default function StreamView({creatorId}:{creatorId: string}) {
   });
   const [currentVideo, setCurrentVideo] = useState<string | null>(null)
 
-  console.log(queue?.streams[0]?.url,"dajksfkljaskfjkd");
   const extractedId = queue?.streams[0]?.url.split("?v=")[1];
-  console.log(extractedId,'extracred people')
   
   async function refreshStream() {
     const res = await axios.get(`/api/stream/?creatorId=${creatorId}`);
     setQueue(res.data)
-    console.log(res);
+    console.log(res.data.activeStreams.stream.url,"refresh stream");
+    setCurrentVideo(res.data.activeStreams.stream.url);
+    
   }
 
+  
+
   const [currentIndex, setCurrentIndex] = useState(0);
-  console.log(previewId,"privie di");
 
   useEffect(() => {
     refreshStream()
-    setCurrentVideo("true")
+    // setCurrentVideo("true")
     const interval = setInterval(() => {
       refreshStream()
     }, REFRESH_INTERVAL_MS)
@@ -71,7 +79,6 @@ export default function StreamView({creatorId}:{creatorId: string}) {
 
 
   const sortedQ = queue.streams.sort((a,b) => a.upvotes < b.upvotes ? 1 : -1);
-  console.log(sortedQ,'Soted queeee');
   
   
 
@@ -97,7 +104,6 @@ export default function StreamView({creatorId}:{creatorId: string}) {
     if (previewId) {
       const res = await axios.post('/api/stream/', data);
       // Assuming the response contains the streams object:
-      console.log(res.data,'sdfdsfdsfd');
       
       // setQueue((prevQueue) => ({
       //   streams: [...prevQueue.streams, ...res.data], // Append new streams to existing streams
@@ -124,7 +130,6 @@ export default function StreamView({creatorId}:{creatorId: string}) {
       const data = { streamId: id };
       const res = await axios.post(`/api/stream/${haveUpvoted ? 'downvote' : 'upvote'}`, data);
   
-      console.log('API Response:', res.data);
     } catch (error) {
       console.error('Error updating votes:', error);
   
@@ -136,19 +141,21 @@ export default function StreamView({creatorId}:{creatorId: string}) {
     }
   };
   
+  const videoUrl = queue?.streams[currentIndex]?.url.split("?v=")[1]
 
-  const playNext = () => {
-    if (queue.streams.length > 0) {
-      // setCurrentVideo(queue.streams[0].url)
-      setCurrentIndex((prevIndex) => (prevIndex + 1) % queue.streams.length);
-      // setQueue(queue.slice(1))
-    } else {
-      setCurrentVideo(null)
-    }
+  const playNext = async () => {
+
+    const res = await axios.get(`/api/stream/next`);
+    const data = res.data;
+    setCurrentVideo(data.stream.url);
+    
   }
 
+  console.log(currentVideo,"current video");
+  
+
   const handleShare = () => {
-    const shareUrl = `${window.location.href}/creator/${creatorId}`
+    const shareUrl = `${window.location.origin}/creator/${creatorId}`
     navigator.clipboard.writeText(shareUrl)
     .then(() => {
       console.log("URL copied to clipboard:", shareUrl);
@@ -232,7 +239,8 @@ export default function StreamView({creatorId}:{creatorId: string}) {
             {currentVideo ? (
               <div className="aspect-video">
                 <YouTube
-                  videoId={queue?.streams[currentIndex]?.url.split("?v=")[1]}
+                  // key={currentVideo}
+                  videoId={currentVideo.split("?v=")[1]}
                   opts={{  playerVars: { autoplay: 1 ,mute: 1} }}
                   onEnd={playNext}
                 />
@@ -242,7 +250,7 @@ export default function StreamView({creatorId}:{creatorId: string}) {
                 <p className="text-gray-400">No video playing</p>
               </div>
             )}
-            <Button onClick={playNext} className="mt-4 bg-blue-600 hover:bg-blue-700" disabled={queue.length === 0}>
+            <Button onClick={playNext} className="mt-4 bg-blue-600 hover:bg-blue-700" disabled={queue.streams.length === 0}>
               Play Next
             </Button>
           </div>

@@ -42,5 +42,5 @@ const creatorId = "258d4b3f-fd89-4dd7-aeb5-1d76c0f4f493"
 
 
 export default function Dashboard() {
-  return <StreamView creatorId={creatorId} />
+  return <StreamView creatorId={creatorId} playVideo={true}/>
 }
