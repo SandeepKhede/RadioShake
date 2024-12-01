@@ -10,6 +10,8 @@ export default function Redirect() {
   useEffect(() => {
     if (session?.data?.user) {
       router.push("/dashboard");
+    }else{
+      router.push("/");
     }
   }, [session]);
   return null;

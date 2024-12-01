@@ -75,6 +75,9 @@ export async function GET(req:NextRequest){
             email: session?.user?.email ?? ""
         }
     })
+    console.log(user?.email,"user");
+    const superUser = user?.email === "sandeep@webkorps.com"
+    
     if (!user){
         return NextResponse.json({
             message: "Unauthorized"
@@ -124,6 +127,7 @@ export async function GET(req:NextRequest){
             upvotes: _count.upvotes,
             haveUpvoted: rest.upvotes.length ?  true : false
         })),
-        activeStreams
+        activeStreams,
+        superUser
     })
 }

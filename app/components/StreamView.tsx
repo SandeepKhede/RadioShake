@@ -9,6 +9,9 @@ import YouTube from 'react-youtube'
 import axios from 'axios'
 import { Appbar } from '../components/Appbar'
 import { useSession } from 'next-auth/react'
+import Redirect from './Redirect'
+import { motion, AnimatePresence } from 'framer-motion'
+import toast, { Toaster } from 'react-hot-toast'
 
 
 const REFRESH_INTERVAL_MS = 10 * 1000;
@@ -34,8 +37,88 @@ export interface StreamsResponse {
   streams: Stream[];
 }
 
+// Add these animation variants before the component
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: { 
+    opacity: 1,
+    transition: { staggerChildren: 0.1 }
+  }
+}
 
+const itemVariants = {
+  hidden: { y: 20, opacity: 0 },    
+  visible: { 
+    y: 0, 
+    opacity: 1,
+    transition: { type: "spring", stiffness: 100 }
+  }
+}
 
+const videoPlayerVariants = {
+  hidden: { opacity: 0, scale: 0.8 },
+  visible: { 
+    opacity: 1, 
+    scale: 1,
+    transition: { 
+      type: "spring",
+      stiffness: 100,
+      duration: 0.5 
+    }
+  }
+}
+
+// Add new animation variants at the top
+const inputVariants = {
+  initial: { opacity: 0, y: -10 },
+  animate: { 
+    opacity: 1, 
+    y: 0,
+    transition: {
+      type: "spring",
+      stiffness: 100
+    }
+  }
+}
+
+const buttonVariants = {
+  initial: { opacity: 0, scale: 0.8 },
+  animate: { 
+    opacity: 1, 
+    scale: 1,
+    transition: {
+      type: "spring",
+      stiffness: 120
+    }
+  },
+  tap: { scale: 0.95 }
+}
+
+// Add these new animation variants at the top
+const textVariants = {
+  hidden: { opacity: 0, y: -20 },
+  visible: { 
+    opacity: 1, 
+    y: 0,
+    transition: {
+      type: "spring",
+      stiffness: 100
+    }
+  }
+}
+
+const buttonHoverVariants = {
+  initial: { scale: 1 },
+  hover: { 
+    scale: 1.05,
+    transition: {
+      type: "spring",
+      stiffness: 400,
+      damping: 10
+    }
+  },
+  tap: { scale: 0.95 }
+}
 
 export default function StreamView({
     creatorId,
@@ -53,13 +136,15 @@ export default function StreamView({
   const [currentVideo, setCurrentVideo] = useState<string | null>(null)
 
   const extractedId = queue?.streams[0]?.url.split("?v=")[1];
+  const [isSuperUser, setIsSuperUser] = useState<Boolean>(false);
+
   
   async function refreshStream() {
     const res = await axios.get(`/api/stream/?creatorId=${creatorId}`);
     setQueue(res.data)
     console.log(res.data.activeStreams.stream.url,"refresh stream");
     setCurrentVideo(res.data.activeStreams.stream.url);
-    
+    setIsSuperUser(res.data.superUser);
   }
 
   
@@ -75,7 +160,6 @@ export default function StreamView({
     // return () => clearInterval(interval);
   },[])
 
-  // const creatorId = "258d4b3f-fd89-4dd7-aeb5-1d76c0f4f493",
 
 
   const sortedQ = queue.streams.sort((a,b) => a.upvotes < b.upvotes ? 1 : -1);
@@ -97,58 +181,56 @@ export default function StreamView({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    const data = {
-      creatorId,
-      url: input
-    }
     if (previewId) {
-      const res = await axios.post('/api/stream/', data);
-      // Assuming the response contains the streams object:
-      
-      // setQueue((prevQueue) => ({
-      //   streams: [...prevQueue.streams, ...res.data], // Append new streams to existing streams
-      // }));
-      // setQueue([...queue, { id: previewId, votes: 0, title: `New Video (${previewId})` }])
-      setInput('')
-      setPreviewId(null)
+      const loadingToast = toast.loading('Adding video to queue...')
+      try {
+        const data = { creatorId, url: input }
+        const res = await axios.post('/api/stream/', data);
+        toast.success('Video added to queue!', { id: loadingToast })
+        setInput('')
+        setPreviewId(null)
+      } catch (error) {
+        toast.error('Failed to add video', { id: loadingToast })
+        console.error(error)
+      }
     }
   }
 
   const updateVotes = async (index: number, increment: number, id: string) => {
     try {
       const newQueue = [...queue.streams];
-      
-      // Determine upvote or downvote action
       const haveUpvoted = newQueue[index].haveUpvoted;
-  
-      // Optimistically update local state
-      newQueue[index].upvotes += haveUpvoted ? -1 : 1; // Adjust upvote count
-      newQueue[index].haveUpvoted = !haveUpvoted; // Toggle upvote state
-      newQueue.sort((a, b) => b.upvotes - a.upvotes); // Sort the streams
-      setQueue({ streams: newQueue }); // Update state locally
-      // API Request
+      
+      // Optimistically update UI
+      newQueue[index].upvotes += haveUpvoted ? -1 : 1;
+      newQueue[index].haveUpvoted = !haveUpvoted;
+      newQueue.sort((a, b) => b.upvotes - a.upvotes);
+      setQueue({ streams: newQueue });
+
       const data = { streamId: id };
-      const res = await axios.post(`/api/stream/${haveUpvoted ? 'downvote' : 'upvote'}`, data);
-  
+      await axios.post(`/api/stream/${haveUpvoted ? 'downvote' : 'upvote'}`, data);
+      toast.success(haveUpvoted ? 'Vote removed' : 'Vote added')
     } catch (error) {
-      console.error('Error updating votes:', error);
-  
-      // Rollback local state on error
+      toast.error('Failed to update vote')
+      // Rollback state
       const newQueue = [...queue.streams];
-      newQueue[index].upvotes -= increment; // Revert upvote count
-      newQueue[index].haveUpvoted = !newQueue[index].haveUpvoted; // Revert upvote state
+      newQueue[index].upvotes -= increment;
+      newQueue[index].haveUpvoted = !newQueue[index].haveUpvoted;
       setQueue({ streams: newQueue });
     }
-  };
-  
+  }
+
   const videoUrl = queue?.streams[currentIndex]?.url.split("?v=")[1]
 
   const playNext = async () => {
-
-    const res = await axios.get(`/api/stream/next`);
-    const data = res.data;
-    setCurrentVideo(data.stream.url);
-    
+    const loadingToast = toast.loading('Loading next video...')
+    try {
+      const res = await axios.get(`/api/stream/next`);
+      setCurrentVideo(res.data.stream.url);
+      toast.success('Playing next video', { id: loadingToast })
+    } catch (error) {
+      toast.error('Failed to play next video', { id: loadingToast })
+    }
   }
 
   console.log(currentVideo,"current video");
@@ -157,106 +239,299 @@ export default function StreamView({
   const handleShare = () => {
     const shareUrl = `${window.location.origin}/creator/${creatorId}`
     navigator.clipboard.writeText(shareUrl)
-    .then(() => {
-      console.log("URL copied to clipboard:", shareUrl);
-      alert("Link copied to clipboard!"); // Optional: Notify the user
-    })
-    .catch((err) => {
-      console.error("Failed to copy URL:", err);
-      alert("Failed to copy the link."); // Optional: Notify the user about failure
-    });
+      .then(() => {
+        toast.success('Link copied to clipboard!')
+      })
+      .catch(() => {
+        toast.error('Failed to copy link')
+      });
   }
 
   return (
-    <>
-    <div className="flex flex-col min-h-screen bg-gray-900 text-gray-100">
-      <div className="container mx-auto p-4 flex-grow">
-    <Appbar />
-        {/* Share Button */}
-        <Button
-          onClick={handleShare}
-          className="absolute top-4 right-4 bg-blue-600 hover:bg-blue-700 text-white"
+    <motion.div 
+      initial={{ opacity: 0 }} 
+      animate={{ opacity: 1 }}
+      className="flex flex-col min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900"
+    >
+      <Toaster 
+        position="top-right"
+        toastOptions={{
+          duration: 3000,
+          style: {
+            background: '#333',
+            color: '#fff',
+          },
+          success: {
+            iconTheme: {
+              primary: '#10B981',
+              secondary: '#fff',
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: '#EF4444',
+              secondary: '#fff',
+            },
+          },
+        }}
+      />
+      <Redirect />
+      <div className="container mx-auto p-4 flex-grow ">
+        <Appbar onShare={handleShare} />
+        <motion.h1 
+          variants={textVariants}
+          initial="hidden"
+          animate="visible"
+          className="text-4xl font-bold mb-6 text-center text-white bg-clip-text text-transparent"
         >
-          Share
-        </Button>
+          ✨ Radio Shake Live ✨
+        </motion.h1>
 
-        <h1 className="text-3xl font-bold mb-6 text-center">Stream Song Voting</h1>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div>
-            <form onSubmit={handleSubmit} className="flex gap-2 mb-4">
-              <Input
-                type="text"
-                value={input}
-                onChange={handleInputChange}
-                placeholder="Enter YouTube video URL"
-                className="flex-grow bg-gray-800 text-gray-100 border-gray-700"
-              />
-              <Button type="submit" disabled={!previewId} className="bg-blue-600 hover:bg-blue-700">
-                Add to Queue
-              </Button>
-            </form>
-            {previewId && (
-              <div className="aspect-video mb-6">
-                <YouTube videoId={previewId} opts={{ width: '100%', height: '100%' }} />
-              </div>
-            )}
-            <div className="space-y-4">
-              <h2 className="text-2xl font-semibold mb-4">Video Queue</h2>
-              {sortedQ.map((video, index) => (
-  <div key={video.id} className="flex items-center gap-4 p-4 bg-gray-800 rounded-lg">
-    {/* Thumbnail Image */}
-    <img
-      src={video.smallImg}
-      alt={video.title}
-      className="w-24 h-18 object-cover rounded"
-    />
-
-    {/* Video Details */}
-    <div className="flex-grow">
-      <p className="font-medium">{video.title}</p>
-      <p className="text-sm text-gray-400">Total Votes: {video.upvotes}</p>
-    </div>
-
-    {/* Vote Buttons */}
-    <div className="flex gap-2">
-      <Button 
-        size="sm" 
-        variant="outline" 
-        onClick={() => updateVotes(index, 1, video.id)}
-        className="flex items-center gap-1 bg-gray-700 hover:bg-gray-600 text-gray-100"
-      >
-        { video.haveUpvoted ?<ThumbsDown className="h-4 w-4" /> :<ThumbsUp className="h-4 w-4" />}
-        <span>{Math.ceil(video.upvotes / 2)}</span>
-      </Button>
-    </div>
-  </div>
-))}
-
-            </div>
-          </div>
-          <div>
-            <h2 className="text-2xl font-semibold mb-4">Currently Playing</h2>
-            {currentVideo ? (
-              <div className="aspect-video">
-                <YouTube
-                  // key={currentVideo}
-                  videoId={currentVideo.split("?v=")[1]}
-                  opts={{  playerVars: { autoplay: 1 ,mute: 1} }}
-                  onEnd={playNext}
-                />
-              </div>
-            ) : (
-              <div className="aspect-video bg-gray-800 flex items-center justify-center rounded-lg">
-                <p className="text-gray-400">No video playing</p>
-              </div>
-            )}
-            <Button onClick={playNext} className="mt-4 bg-blue-600 hover:bg-blue-700" disabled={queue.streams.length === 0}>
-              Play Next
+        {/* Form section - moved outside grid */}
+        <motion.form 
+          onSubmit={handleSubmit} 
+          className="flex gap-2 mb-6 w-full max-w-2xl mx-auto"
+        >
+          <motion.div 
+            variants={inputVariants}
+            initial="initial"
+            animate="animate"
+            className="flex-grow"
+          >
+            <Input
+              type="text" 
+              value={input}
+              onChange={handleInputChange}
+              placeholder="🎵 Paste YouTube URL to add to the party..."
+              className="w-full bg-gray-800/50 text-gray-100 border-gray-700/50 backdrop-blur-sm"
+            />
+          </motion.div>
+          <motion.div
+            variants={buttonHoverVariants}
+            initial="initial"
+            whileHover="hover"
+            whileTap="tap"
+          >
+            <Button 
+              type="submit" 
+              disabled={!previewId} 
+              className="bg-gradient-to-r from-purple-600 to-blue-600 
+              hover:from-purple-700 hover:to-blue-700
+              text-white font-semibold px-6 py-2.5 rounded-full shadow-[0_0_15px_rgba(168,85,247,0.2)] 
+              hover:shadow-[0_0_30px_rgba(168,85,247,0.4)] transition-all duration-200 
+              disabled:opacity-50 disabled:cursor-not-allowed border border-gray-700/50"
+            >
+              <motion.span
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.2 }}
+                className="flex items-center gap-2 "
+              >
+                <span>Drop the Beat</span>
+              </motion.span>
             </Button>
+          </motion.div>
+        </motion.form>
+
+        {/* Main content grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Left Column */}
+          <div className="w-full">
+            <motion.h2 
+              variants={textVariants}
+              initial="hidden"
+              animate="visible"
+              className="text-2xl text-white font-semibold mb-4"
+            >
+              🎧 Coming Up Next
+            </motion.h2>
+            
+            {/* Scrollable queue container */}
+            <motion.div 
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+              className="max-h-[calc(99.25vw/2)] lg:max-h-[calc(99.25vw/4)] overflow-y-auto pr-2 space-y-4 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800"
+            >
+              <AnimatePresence>
+                {sortedQ.map((video, index) => (
+                  <motion.div 
+                    key={video.id}
+                    variants={itemVariants}
+                    layout
+                    initial="hidden"
+                    animate="visible"
+                    exit={{ opacity: 0, y: -20 }}
+                    className="flex items-center gap-4 p-4 bg-gray-800/50 backdrop-blur-sm 
+              rounded-lg transition-all duration-300 border border-gray-700/50
+              hover:bg-gradient-to-r hover:from-purple-600/10 hover:to-blue-600/10
+              hover:shadow-[0_0_15px_rgba(168,85,247,0.2)]"
+                  >
+                    {/* Thumbnail Container */}
+                    <motion.div 
+                      whileHover={{ scale: 1.05 }}
+                      className="relative w-1/4 aspect-video overflow-hidden rounded-md"
+                    >
+                      <img
+                        src={video.smallImg}
+                        alt={video.title}
+                        className="w-full h-full object-cover"
+                      />
+                    </motion.div>
+
+                    {/* Video Details */}
+                    <div className="flex-grow space-y-1">
+                      <p className="font-medium text-gray-100 line-clamp-1">{video.title}</p>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-400">Votes: {video.upvotes}</span>
+                      </div>
+                    </div>
+
+                    {/* Vote Button */}
+                    <motion.div 
+                      variants={buttonHoverVariants}
+                      initial="initial"
+                      whileHover="hover"
+                      whileTap="tap"
+                    >
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        onClick={() => updateVotes(index, 1, video.id)}
+                        className={`
+                          flex items-center gap-2 px-5 py-2 rounded-full backdrop-blur-sm
+                          transition-all duration-200 border border-gray-700/50
+                          ${video.haveUpvoted 
+                            ? 'bg-pink-500/10 hover:bg-pink-500/20 text-pink-400' 
+                            : 'bg-purple-500/10 hover:bg-purple-500/20 text-purple-400'}
+                        `}
+                      >
+                        <motion.span
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ duration: 0.2 }}
+                          className="text-lg"
+                        >
+                          {video.haveUpvoted ? '👎' : '🔥'}
+                        </motion.span>
+                        <span className="font-medium">{Math.ceil(video.upvotes / 2)}</span>
+                      </Button>
+                    </motion.div>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </motion.div>
+          </div>
+          
+          {/* Right Column - Currently Playing */}
+          <div className="w-full">
+            <motion.h2 
+              initial={{ x: -20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              className="text-2xl font-semibold text-white mb-4"
+            >
+              🔴 Now Playing
+            </motion.h2>
+            
+            <motion.div
+              variants={videoPlayerVariants}
+              initial="hidden"
+              animate="visible"
+              className="w-full aspect-video rounded-lg overflow-hidden shadow-xl"
+            >
+              {currentVideo ? (
+                <div className="w-full aspect-video">
+                  <YouTube
+                    videoId={currentVideo.split("?v=")[1]}
+                    opts={{ 
+                      width: '100%', 
+                      height: '100%',
+                      playerVars: {
+                        autoplay: 1,
+                        modestbranding: 1,
+                        rel: 0,
+                        controls: isSuperUser ? 1 : 0,
+                        disablekb: !isSuperUser,
+                        // fs: isSuperUser,
+                        iv_load_policy: 3,
+                        playsinline: 1,
+                      }
+                    }}
+                    onEnd={playNext}
+                    onReady={(event: any) => {
+                      const player = event.target;
+                      
+                      if (!isSuperUser) {
+                        const volumeControl = document.createElement('div');
+                        volumeControl.className = 
+                          'absolute bottom-4 right-4 flex items-center gap-2 bg-black/50 p-2 rounded-full';
+                        
+                        const muteButton = document.createElement('button');
+                        muteButton.className = 
+                          'text-white hover:text-gray-300 transition-colors duration-200';
+                        muteButton.innerHTML = '🔊';
+                        muteButton.onclick = () => {
+                          if (player.isMuted()) {
+                            player.unMute();
+                            muteButton.innerHTML = '🔊';
+                          } else {
+                            player.mute();
+                            muteButton.innerHTML = '🔈';
+                          }
+                        };
+                        
+                        volumeControl.appendChild(muteButton);
+                        player.getIframe().parentNode.appendChild(volumeControl);
+                      }
+                    }}
+                    className="w-full h-full relative"
+                  />
+                </div>
+              ) : (
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="w-full aspect-video bg-gray-800 flex items-center justify-center rounded-lg"
+                >
+                  <p className="text-gray-400">
+                    Queue is empty. Drop your favorite track! 🎵
+                  </p>
+                </motion.div>
+              )}
+            </motion.div>
+
+            {currentVideo && isSuperUser && (
+              <motion.div
+                variants={buttonHoverVariants}
+                initial="initial"
+                whileHover="hover"
+                whileTap="tap"
+                className="mt-4"
+              >
+                <Button 
+                  onClick={playNext} 
+                  disabled={queue.streams.length === 0}
+                  className="w-full bg-gradient-to-r from-purple-600 to-pink-600 
+                  hover:from-purple-700 hover:to-pink-700 text-white font-semibold 
+                  px-6 py-3 rounded-xl shadow-[0_0_15px_rgba(168,85,247,0.2)] 
+                  hover:shadow-[0_0_30px_rgba(168,85,247,0.4)] transition-all duration-200
+                  border border-gray-700/50 disabled:opacity-50"
+                >
+                  <motion.span
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.2 }}
+                    className="flex items-center justify-center gap-2"
+                  >
+                    <span>Play Next Track</span>
+                    <span className="text-xl">🎵</span>
+                  </motion.span>
+                </Button>
+              </motion.div>
+            )}
           </div>
         </div>
       </div>
-    </div>
-    </>
+    </motion.div>
   )
 }
