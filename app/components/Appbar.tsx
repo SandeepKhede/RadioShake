@@ -1,13 +1,10 @@
 "use client"
-import { signIn, signOut, useSession } from "next-auth/react";
+import {  signOut } from "next-auth/react";
 import Link from "next/link"
-import { LogOut, LogIn, Share2 } from 'lucide-react'; 
+import { LogOut, Share2 } from 'lucide-react'; 
 
-
-//@ts-ignore
-import { Music} from 'lucide-react'
 export function Appbar({onShare}:{onShare:()=>void}){
-    const session = useSession()
+
     return(
         <nav className=" mb-4 px-4 py-2">
             <div className="flex items-center justify-between max-w-6xl mx-auto">

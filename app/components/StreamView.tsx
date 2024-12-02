@@ -1,18 +1,14 @@
 'use client'
-
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-//@ts-ignore
-import { ThumbsUp, ThumbsDown } from 'lucide-react'
 import YouTube from 'react-youtube'
 import axios from 'axios'
 import { Appbar } from '../components/Appbar'
-import { useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
 import Redirect from './Redirect'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast, { Toaster } from 'react-hot-toast'
+import Image from 'next/image';
 
 
 const REFRESH_INTERVAL_MS = 10 * 1000;
@@ -82,19 +78,6 @@ const inputVariants = {
   }
 }
 
-const buttonVariants = {
-  initial: { opacity: 0, scale: 0.8 },
-  animate: { 
-    opacity: 1, 
-    scale: 1,
-    transition: {
-      type: "spring",
-      stiffness: 120
-    }
-  },
-  tap: { scale: 0.95 }
-}
-
 // Add these new animation variants at the top
 const textVariants = {
   hidden: { opacity: 0, y: -20 },
@@ -121,12 +104,27 @@ const buttonHoverVariants = {
   tap: { scale: 0.95 }
 }
 
+// Add these type definitions at the top of your file with other interfaces
+interface YouTubePlayer {
+    getIframe: () => HTMLIFrameElement;
+    isMuted: () => boolean;
+    mute: () => void;
+    unMute: () => void;
+    target: HTMLIFrameElement;
+}
+
+interface YouTubeEvent {
+    target: YouTubePlayer;
+    data: number;
+}
+
 export default function StreamView({
     creatorId,
+   // eslint-disable-next-line @typescript-eslint/no-unused-vars
     playVideo = false
     } : {
         creatorId: string,
-        playVideo: boolean
+        playVideo?: boolean
     }
 ) {
   const [input, setInput] = useState('')
@@ -136,41 +134,24 @@ export default function StreamView({
   });
   const [currentVideo, setCurrentVideo] = useState<string | null>(null)
 
-  const extractedId = queue?.streams[0]?.url.split("?v=")[1];
-  const [isSuperUser, setIsSuperUser] = useState<Boolean>(false);
-  const { data: session, status } = useSession()
-  const router = useRouter()
-
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/')
+  const [isSuperUser, setIsSuperUser] = useState<boolean>(false);
+  
+  const refreshStream = useCallback(async () => {
+    try {
+        const res = await axios.get(`/api/stream/?creatorId=${creatorId}`);
+        setQueue(res.data);
+        if (res.data.activeStreams?.stream?.url) {
+            setCurrentVideo(res.data.activeStreams.stream.url);
+        }
+        setIsSuperUser(res.data.superUser);
+    } catch (error) {
+        console.error('Error refreshing stream:', error);
     }
-  }, [status, router])
-
-  // If still loading, show loading state
-  if (status === 'loading') {
-    return <div className="flex items-center justify-center min-h-screen">
-      <p className="text-white">Loading...</p>
-    </div>
-  }
-
-  // If not authenticated, don't render anything (redirect will happen via useEffect)
-  if (status === 'unauthenticated') {
-    return null
-  }
-
-  
-  async function refreshStream() {
-    const res = await axios.get(`/api/stream/?creatorId=${creatorId}`);
-    setQueue(res.data)
-    console.log(res.data.activeStreams.stream.url,"refresh stream");
-    setCurrentVideo(res.data.activeStreams.stream.url);
-    setIsSuperUser(res.data.superUser);
-  }
+  }, [creatorId]);
 
   
 
-  const [currentIndex, setCurrentIndex] = useState(0);
+
 
   useEffect(() => {
     refreshStream()
@@ -178,8 +159,8 @@ export default function StreamView({
     const interval = setInterval(() => {
       refreshStream()
     }, REFRESH_INTERVAL_MS)
-    // return () => clearInterval(interval);
-  },[])
+    return () => clearInterval(interval);
+  },[refreshStream])
 
 
 
@@ -206,7 +187,7 @@ export default function StreamView({
       const loadingToast = toast.loading('Adding video to queue...')
       try {
         const data = { creatorId, url: input }
-        const res = await axios.post('/api/stream/', data);
+        await axios.post('/api/stream/', data);
         toast.success('Video added to queue!', { id: loadingToast })
         setInput('')
         setPreviewId(null)
@@ -234,6 +215,8 @@ export default function StreamView({
     } catch (error) {
       toast.error('Failed to update vote')
       // Rollback state
+      console.log(error,"error");
+      
       const newQueue = [...queue.streams];
       newQueue[index].upvotes -= increment;
       newQueue[index].haveUpvoted = !newQueue[index].haveUpvoted;
@@ -241,7 +224,7 @@ export default function StreamView({
     }
   }
 
-  const videoUrl = queue?.streams[currentIndex]?.url.split("?v=")[1]
+  
 
   const playNext = async () => {
     const loadingToast = toast.loading('Loading next video...')
@@ -250,6 +233,8 @@ export default function StreamView({
       setCurrentVideo(res.data.stream.url);
       toast.success('Playing next video', { id: loadingToast })
     } catch (error) {
+      console.log(error,"error");
+      
       toast.error('Failed to play next video', { id: loadingToast })
     }
   }
@@ -395,10 +380,12 @@ export default function StreamView({
                       whileHover={{ scale: 1.05 }}
                       className="relative w-1/4 aspect-video overflow-hidden rounded-md"
                     >
-                      <img
+                      <Image
                         src={video.smallImg}
                         alt={video.title}
-                        className="w-full h-full object-cover"
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 768px) 100vw, 25vw"
                       />
                     </motion.div>
 
@@ -435,7 +422,7 @@ export default function StreamView({
                           transition={{ duration: 0.2 }}
                           className="text-lg"
                         >
-                          {video.haveUpvoted ? '👎' : '🔥'}
+                          {video.haveUpvoted ? '👎' : '👍'}
                         </motion.span>
                         <span className="font-medium">{Math.ceil(video.upvotes / 2)}</span>
                       </Button>
@@ -481,7 +468,7 @@ export default function StreamView({
                       }
                     }}
                     onEnd={playNext}
-                    onReady={(event: any) => {
+                    onReady={(event: YouTubeEvent) => {
                       const player = event.target;
                       
                       if (!isSuperUser) {
@@ -504,7 +491,7 @@ export default function StreamView({
                         };
                         
                         volumeControl.appendChild(muteButton);
-                        player.getIframe().parentNode.appendChild(volumeControl);
+                        player.getIframe().parentNode?.appendChild(volumeControl);
                       }
                     }}
                     className="w-full h-full relative"

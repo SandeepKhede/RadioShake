@@ -1,7 +1,7 @@
 import { prismaClient } from "@/app/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from 'zod';
-//@ts-ignore
+//@ts-expect-error no-unused-vars
 import youtubesearchapi from "youtube-search-api";
 import { getServerSession } from "next-auth";
 

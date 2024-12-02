@@ -13,6 +13,6 @@ export default function Redirect() {
     }else{
       router.push("/");
     }
-  }, [session]);
+  }, [session,router]);
   return null;
 }

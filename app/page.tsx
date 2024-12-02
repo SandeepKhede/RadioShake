@@ -4,12 +4,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Music, Users, Headphones, ArrowRight } from 'lucide-react'
 import Redirect from "./components/Redirect";
-import { signIn, useSession } from "next-auth/react";
+import { signIn } from "next-auth/react";
 import { motion, useScroll, useTransform } from "framer-motion";
 // import { Appbar } from "./components/Appbar";
 
 export default function LandingPage() {
-  const session = useSession()
   const { scrollY } = useScroll();
   const opacity = useTransform(
     scrollY, 
