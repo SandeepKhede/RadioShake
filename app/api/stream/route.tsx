@@ -26,8 +26,10 @@ export async function POST(req:NextRequest){
     const extractedId = data.url.split("?v=")[1];
     const res = await youtubesearchapi.GetVideoDetails(extractedId);
     
-    const thumbnails = res.thumbnail.thumbnails;
-    thumbnails.sort((a: {width: number},b: {width: number}) => a.width < b.width ? -1 : 1)
+    console.log(res,"res for youtube");
+    
+    const thumbnails = res?.thumbnail?.thumbnails;
+    thumbnails?.sort((a: {width: number},b: {width: number}) => a.width < b.width ? -1 : 1)
 
     const stream = await prismaClient.stream.create({
        data: {
@@ -40,11 +42,11 @@ export async function POST(req:NextRequest){
         // bigImg: thumnails[thumnails.length - 1] ?? "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSEMqju_A-Rpw5rw_MiUYkMGr7ntmv6o1KCDg&s"
         smallImg:
         (thumbnails.length > 1
-          ? thumbnails[thumbnails.length - 2].url
-          : thumbnails[thumbnails.length - 1].url) ??
+          ? thumbnails[thumbnails?.length - 2].url
+          : thumbnails[thumbnails?.length - 1].url) ??
         "https://cdn.pixabay.com/photo/2024/02/28/07/42/european-shorthair-8601492_640.jpg",
         bigImg:
-        thumbnails[thumbnails.length - 1].url ??
+        thumbnails[thumbnails?.length - 1].url ??
         "https://cdn.pixabay.com/photo/2024/02/28/07/42/european-shorthair-8601492_640.jpg",
        }
     })
