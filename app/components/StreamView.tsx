@@ -9,6 +9,7 @@ import YouTube from 'react-youtube'
 import axios from 'axios'
 import { Appbar } from '../components/Appbar'
 import { useSession } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
 import Redirect from './Redirect'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast, { Toaster } from 'react-hot-toast'
@@ -137,6 +138,26 @@ export default function StreamView({
 
   const extractedId = queue?.streams[0]?.url.split("?v=")[1];
   const [isSuperUser, setIsSuperUser] = useState<Boolean>(false);
+  const { data: session, status } = useSession()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/')
+    }
+  }, [status, router])
+
+  // If still loading, show loading state
+  if (status === 'loading') {
+    return <div className="flex items-center justify-center min-h-screen">
+      <p className="text-white">Loading...</p>
+    </div>
+  }
+
+  // If not authenticated, don't render anything (redirect will happen via useEffect)
+  if (status === 'unauthenticated') {
+    return null
+  }
 
   
   async function refreshStream() {
@@ -254,11 +275,13 @@ export default function StreamView({
       className="flex flex-col min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900"
     >
       <Toaster 
-        position="top-right"
+        position="top-left"
         toastOptions={{
           duration: 3000,
           style: {
-            background: '#333',
+            background: 'rgba(16, 185, 129, 0.15)',
+        backdropFilter: 'blur(10px)',
+        border: '1px solid rgba(16, 185, 129, 0.2)',
             color: '#fff',
           },
           success: {
@@ -452,7 +475,7 @@ export default function StreamView({
                         rel: 0,
                         controls: isSuperUser ? 1 : 0,
                         disablekb: !isSuperUser,
-                        // fs: isSuperUser,
+                        fs: isSuperUser,
                         iv_load_policy: 3,
                         playsinline: 1,
                       }

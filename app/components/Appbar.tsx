@@ -11,8 +11,11 @@ export function Appbar({onShare}:{onShare:()=>void}){
     return(
         <nav className=" mb-4 px-4 py-2">
             <div className="flex items-center justify-between max-w-6xl mx-auto">
-                <Link href="/" className="text-2xl font-bold text-purple-500">
-                    RadioShake
+                <Link href="/" className="text-2xl font-bold text-blue-500">
+                    Radio<span className="
+                 hover:text-blue-500 hover:from-purple-600 hover:to-blue-600 
+                text-white  transition-all duration-300
+                 ">Shake</span>
                 </Link>
 
                 <div className="flex items-center gap-4">
