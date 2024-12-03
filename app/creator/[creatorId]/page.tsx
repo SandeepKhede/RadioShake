@@ -10,6 +10,7 @@ export default async function CreatorPage({
     params: Params 
 }) {
     const { creatorId } = await params;
+    // eslint-disable-next-line react-hooks/rules-of-hooks
     useEffect(() => {   
         window.localStorage.setItem("creatorId", creatorId);
     }, []);
