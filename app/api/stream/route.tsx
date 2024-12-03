@@ -47,6 +47,20 @@ export async function POST(req:NextRequest){
         bigImgUrl = thumbnails[thumbnails.length - 1].url;
     }
 
+    const userExists = await prismaClient.user.findUnique({
+        where: {
+            id: data.creatorId
+        }
+    });
+
+    if (!userExists) {
+        return NextResponse.json({
+            message: "User not found"
+        }, {
+            status: 404
+        });
+    }
+
     const stream = await prismaClient.stream.create({
        data: {
         userId: data.creatorId,
