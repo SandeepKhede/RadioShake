@@ -24,12 +24,28 @@ export async function POST(req:NextRequest){
     } 
 
     const extractedId = data.url.split("?v=")[1];
-    const res = await youtubesearchapi.GetVideoDetails(extractedId);
-    
-    console.log(res,"res for youtube");
-    
-    const thumbnails = res?.thumbnail?.thumbnails;
-    thumbnails?.sort((a: {width: number},b: {width: number}) => a.width < b.width ? -1 : 1)
+    let res;
+    try {
+        res = await youtubesearchapi.GetVideoDetails(extractedId);
+        console.log(res, "res for youtube");
+    } catch (apiError) {
+        console.error("Error fetching video details:", apiError);
+        return NextResponse.json({
+            message: "Error fetching video details"
+        }, {
+            status: 500
+        });
+    }
+
+    const thumbnails = res?.thumbnail?.thumbnails || [];
+    let smallImgUrl = "https://cdn.pixabay.com/photo/2024/02/28/07/42/european-shorthair-8601492_640.jpg";
+    let bigImgUrl = "https://cdn.pixabay.com/photo/2024/02/28/07/42/european-shorthair-8601492_640.jpg";
+
+    if (thumbnails.length > 0) {
+        thumbnails.sort((a: {width: number}, b: {width: number}) => a.width < b.width ? -1 : 1);
+        smallImgUrl = thumbnails.length > 1 ? thumbnails[thumbnails.length - 2].url : thumbnails[thumbnails.length - 1].url;
+        bigImgUrl = thumbnails[thumbnails.length - 1].url;
+    }
 
     const stream = await prismaClient.stream.create({
        data: {
@@ -38,16 +54,8 @@ export async function POST(req:NextRequest){
         extractedId,
         type: "Youtube",
         title: res.title ?? "Radio Shake",
-        // smallImg: thumnails.length > 1 ? thumnails[thumnails.length - 2] : thumnails[thumnails.length - 1] ?? "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSEMqju_A-Rpw5rw_MiUYkMGr7ntmv6o1KCDg&s",
-        // bigImg: thumnails[thumnails.length - 1] ?? "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSEMqju_A-Rpw5rw_MiUYkMGr7ntmv6o1KCDg&s"
-        smallImg:
-        (thumbnails.length > 1
-          ? thumbnails[thumbnails?.length - 2].url
-          : thumbnails[thumbnails?.length - 1].url) ??
-        "https://cdn.pixabay.com/photo/2024/02/28/07/42/european-shorthair-8601492_640.jpg",
-        bigImg:
-        thumbnails[thumbnails?.length - 1].url ??
-        "https://cdn.pixabay.com/photo/2024/02/28/07/42/european-shorthair-8601492_640.jpg",
+        smallImg: smallImgUrl,
+        bigImg: bigImgUrl,
        }
     })
 
