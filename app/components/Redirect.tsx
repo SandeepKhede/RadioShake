@@ -6,9 +6,9 @@ import { useRouter, } from "next/navigation";
 export default function Redirect() {
   const session = useSession();
   const router = useRouter();
-  const creatorId = window.localStorage.getItem("creatorId");
   
   useEffect(() => {
+    const creatorId = window.localStorage.getItem("creatorId");
     if (session?.data?.user) {
       if(creatorId){
         router.push(`/creator/${creatorId}`);
