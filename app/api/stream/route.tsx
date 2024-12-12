@@ -61,6 +61,11 @@ export async function POST(req:NextRequest){
         });
     }
 
+    const space = await prismaClient.space.create({
+        data: {
+            creatorId: data.creatorId,
+        }
+    })
     const stream = await prismaClient.stream.create({
        data: {
         userId: data.creatorId,
@@ -73,10 +78,12 @@ export async function POST(req:NextRequest){
        }
     })
 
+
     return NextResponse.json({
         ...stream,
         haveUpvoted: false,
-        upvotes: 0
+        upvotes: 0,
+        spaceId: space.id
     })
         
     } catch (error) {
@@ -100,7 +107,7 @@ export async function GET(req:NextRequest){
         }
     })
     console.log(user?.email,"user");
-    const superUser = user?.email === "sandeep@webkorps.com"
+    const superUser = process.env.SUPER_USER
     
     if (!user){
         return NextResponse.json({
@@ -146,7 +153,7 @@ export async function GET(req:NextRequest){
     
 
     return NextResponse.json({
-        streams: streams.map(({_count,...rest}) => ({
+        streams: streams.map(({_count, ...rest}:any) => ({
             ...rest,
             upvotes: _count.upvotes,
             haveUpvoted: rest.upvotes.length ?  true : false

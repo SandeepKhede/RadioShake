@@ -8,17 +8,16 @@ export default function Redirect() {
   const router = useRouter();
   
   useEffect(() => {
-    const creatorId = window.localStorage.getItem("creatorId");
     if (session?.data?.user) {
-      if(creatorId){
+      const creatorId = localStorage.getItem("creatorId");
+      if (creatorId) {
         router.push(`/creator/${creatorId}`);
-      }else{
+      } else {
         router.push("/dashboard");
       }
-    }
-    else{
+    } else {
       router.push("/");
     }
-  }, [session,router]);
+  }, [session, router]);
   return null;
 }

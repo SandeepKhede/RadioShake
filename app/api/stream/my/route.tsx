@@ -35,11 +35,14 @@ export async function GET(){
         }
     })
 
+
+
     return NextResponse.json({
-        streams: streams.map(({_count,...rest}) => ({
+        streams: streams.map(({_count,...rest}:any) => ({
             ...rest,
             upvotes: _count.upvotes,
             haveUpvoted: rest.upvotes.length ?  true : false
-        }))
+        })),
+        creatorId: user.id
     })
 }

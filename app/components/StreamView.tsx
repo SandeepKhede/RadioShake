@@ -162,7 +162,7 @@ export default function StreamView({
     return () => clearInterval(interval);
   },[refreshStream])
 
-
+  
 
   const sortedQ = queue.streams.sort((a,b) => a.upvotes < b.upvotes ? 1 : -1);
   
@@ -510,7 +510,7 @@ export default function StreamView({
               )}
             </motion.div>
 
-            {currentVideo && isSuperUser && (
+            {isSuperUser && (
               <motion.div
                 variants={buttonHoverVariants}
                 initial="initial"

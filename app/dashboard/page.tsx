@@ -31,10 +31,11 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchData = async () => {
         const res = await axios.get(`/api/stream/my`)
-        setcreatorId(res.data.streams[0].userId);      
+        setcreatorId(res.data.creatorId);      
     }
     fetchData()
   }, [])
   
+
     return <StreamView creatorId={creatorId ?? ""} playVideo={true} /> 
 }

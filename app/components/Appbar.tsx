@@ -33,7 +33,10 @@ export function Appbar({onShare}:{onShare:()=>void}){
 
                     {/* Logout Button - with red-orange gradient */}
                     <button
-                        onClick={() => signOut()}
+                        onClick={() => {
+                            signOut();
+                            localStorage.clear();
+                        }}
                         className="flex items-center gap-2 px-6 py-2
                            bg-gradient-to-r from-red-500 to-orange-500
                             hover:bg-gradient-to-r hover:from-red-500 hover:to-orange-500 
