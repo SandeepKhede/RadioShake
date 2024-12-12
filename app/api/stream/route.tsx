@@ -61,11 +61,6 @@ export async function POST(req:NextRequest){
         });
     }
 
-    const space = await prismaClient.space.create({
-        data: {
-            creatorId: data.creatorId,
-        }
-    })
     const stream = await prismaClient.stream.create({
        data: {
         userId: data.creatorId,
@@ -83,7 +78,6 @@ export async function POST(req:NextRequest){
         ...stream,
         haveUpvoted: false,
         upvotes: 0,
-        spaceId: space.id
     })
         
     } catch (error) {
@@ -153,6 +147,7 @@ export async function GET(req:NextRequest){
     
 
     return NextResponse.json({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         streams: streams.map(({_count, ...rest}:any) => ({
             ...rest,
             upvotes: _count.upvotes,

@@ -2,6 +2,7 @@ import { prismaClient } from "@/app/lib/db";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function GET(){
     const session = await getServerSession();
     const user = await prismaClient.user.findFirst({
@@ -36,8 +37,8 @@ export async function GET(){
     })
 
 
-
     return NextResponse.json({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         streams: streams.map(({_count,...rest}:any) => ({
             ...rest,
             upvotes: _count.upvotes,
